@@ -643,3 +643,37 @@ func (c *Consumer) SetOAuthBearerToken(oauthBearerToken OAuthBearerToken) error 
 func (c *Consumer) SetOAuthBearerTokenFailure(errstr string) error {
 	return c.handle.setOAuthBearerTokenFailure(errstr)
 }
+
+// ConsumerGroupMetadata reflects the current consumer group member metadata.
+type ConsumerGroupMetadata struct {
+	cgmd *C.rd_kafka_consumer_group_metadata_t
+}
+
+// GetConsumerGroupMetadata returns the consumer's current group metadata.
+// This object should be passed to the transactional producer's
+// SendOffsetsToTransaction() API and then destroyed with metadata.Close().
+func (c *Consumer) GetConsumerGroupMetadata() *ConsumerGroupMetadata {
+	return &ConsumerGroupMetadata{
+		cgmd: C.rd_kafka_consumer_group_metadata(c.handle.rk),
+	}
+}
+
+// Close frees resources associated with the consumer group metadata.
+func (cg *ConsumerGroupMetadata) Close() {
+	if cg.cgmd != nil {
+		C.rd_kafka_consumer_group_metadata_destroy(cg.cgmd)
+		cg.cgmd = nil
+	}
+}
+
+// NewConsumerGroupMetadata creates a new consumer group metadata instance
+// for testing use.
+// The returned object must be destroyed with metadata.Close().
+func NewConsumerGroupMetadata(groupID string) *ConsumerGroupMetadata {
+	cGroupID := C.CString(groupID)
+	defer C.free(unsafe.Pointer(cGroupID))
+
+	return &ConsumerGroupMetadata{
+		cgmd: C.rd_kafka_consumer_group_metadata_new(cGroupID),
+	}
+}
